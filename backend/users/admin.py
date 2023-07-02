@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from users.models import Follow, User
+from users.models import User
+from recipes.models import Follow
 
 
 class UserAdmin(UserAdmin):

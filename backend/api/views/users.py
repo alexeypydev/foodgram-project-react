@@ -7,8 +7,9 @@ from rest_framework.permissions import (IsAuthenticated,
 from rest_framework.response import Response
 
 from api.paginations import LimitPagination
-from users.models import Follow, User
-from users.serializers import CustomUserSerializer, FollowSerializer
+from users.models import User
+from recipes.models import Follow
+from api.serializers.users import CustomUserSerializer, FollowSerializer
 
 
 class UsersViewSet(UserViewSet):
@@ -31,12 +32,10 @@ class UsersViewSet(UserViewSet):
         subscription = Follow.objects.filter(user=user, author=author)
 
         if request.method == 'POST':
-            if subscription.exists():
-                return Response(status=status.HTTP_400_BAD_REQUEST)
             if user == author:
                 return Response(status=status.HTTP_400_BAD_REQUEST)
             serializer = FollowSerializer(author, context={'request': request})
-            Follow.objects.create(user=user, author=author)
+            Follow.objects.get_or_create(user=user, author=author)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         if request.method == 'DELETE':

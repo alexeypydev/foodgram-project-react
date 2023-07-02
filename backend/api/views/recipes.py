@@ -12,9 +12,9 @@ from api.filters import IngredientFilter, RecipeFilter
 from api.paginations import LimitPagination
 from api.permissions import IsAuthorOrReadOnly
 from recipes.models import Ingredient, Recipe, RecipeIngredient, Tag
-from recipes.serializers import (FavoriteSerializer, IngredientSerializer,
-                                 RecipeSerializer, ShoppingCartSerializer,
-                                 TagSerializer)
+from api.serializers.recipes import (FavoriteSerializer, IngredientSerializer,
+                                     RecipeSerializer, ShoppingCartSerializer,
+                                     TagSerializer)
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
@@ -47,9 +47,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def action_post_delete(self, pk, serializer_class):
         user = self.request.user
         recipe = get_object_or_404(Recipe, pk=pk)
-        object = serializer_class.Meta.model.objects.filter(
-            user=user, recipe=recipe
-        )
+        object = user.recipes.filter(recipe=recipe)
 
         if self.request.method == 'POST':
             serializer = serializer_class(

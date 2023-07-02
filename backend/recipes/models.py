@@ -69,6 +69,7 @@ class Recipe(models.Model):
     )
     ingredients = models.ManyToManyField(
         Ingredient,
+        through='RecipeIngredient',
         verbose_name='Ингредиенты',
         related_name='recipes'
     )
@@ -133,7 +134,34 @@ class RecipeIngredient(models.Model):
                 f' {self.amount} {self.ingredient.measurement_unit}')
 
 
-class FavoriteList(models.Model):
+class Follow(models.Model):
+    """Подписка."""
+    user = models.ForeignKey(
+        User,
+        related_name='follower',
+        verbose_name='Подписчик',
+        on_delete=models.CASCADE
+    )
+    author = models.ForeignKey(
+        User,
+        related_name='following',
+        verbose_name='Автор',
+        on_delete=models.CASCADE
+    )
+
+    class Meta:
+        verbose_name = 'Подписка'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['author', 'user'],
+                name='unique_follower')
+        ]
+
+    def __str__(self):
+        return f'Автор: {self.author}, подписчик: {self.user}'
+
+
+class Favorite(models.Model):
     """Список избранного."""
     user = models.ForeignKey(
         User,
@@ -161,7 +189,7 @@ class FavoriteList(models.Model):
         return f'{self.recipe} - {self.user}'
 
 
-class ShoppingList(models.Model):
+class Shopping(models.Model):
     """Список покупок."""
     user = models.ForeignKey(
         User,
