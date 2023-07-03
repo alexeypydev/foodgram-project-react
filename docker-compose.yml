@@ -27,6 +27,7 @@ services:
     command: cp -r /app/build/. /frontend_static/
     volumes:
       - ../frontend/:/app/result_build/
+      - static:/static
 
   gateway:
     image: alekseypydev/foodgram_gateway
