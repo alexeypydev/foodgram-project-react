@@ -1,6 +1,7 @@
 import base64
 
 from django.core.files.base import ContentFile
+from django.core.validators import MaxValueValidator, MinValueValidator
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -53,6 +54,18 @@ class AddIngredientSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(
         queryset=Ingredient.objects.all(),
         source='ingredient')
+    amount = serializers.IntegerField(
+        validators=[
+            MinValueValidator(
+                1,
+                message='Количество не может быть меньше 1!'
+            ),
+            MaxValueValidator(
+                100,
+                message='Количество не может быть больше 100!'
+            )
+        ]
+    )
 
     class Meta:
         model = RecipeIngredient
