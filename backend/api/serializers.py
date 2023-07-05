@@ -175,7 +175,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
     def validate(self, data):
         user = data.get('user')
         recipe = data.get('recipe')
-        if Favorite.objects.filter(user=user, recipe=recipe).exists():
+        if self.Meta.model.objects.filter(user=user, recipe=recipe).exists():
             raise ValidationError(
                 {'error': 'Этот рецепт уже добавлен'}
             )
