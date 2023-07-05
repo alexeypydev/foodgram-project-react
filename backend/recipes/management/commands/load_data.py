@@ -2,7 +2,7 @@ import csv
 import os
 
 from django.core.management import BaseCommand
-
+from django.db import DatabaseError
 from foodgram.settings import BASE_DIR
 from recipes.models import Ingredient
 
@@ -20,9 +20,9 @@ class Command(BaseCommand):
             for row in reader:
                 try:
                     Ingredient(name=row[0], measurement_unit=row[1]).save()
-                except Exception as exc:
+                except DatabaseError as error:
                     self.stdout.write(self.style.ERROR(
-                        f'Ошибка при загрузке данных: {exc}')
+                        f'Ошибка при загрузке данных: {error}')
                     )
         self.stdout.write(self.style.SUCCESS(
             'Ингредиенты успешно загружены')

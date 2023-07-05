@@ -1,20 +1,25 @@
+from django.db.models import F, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from djoser.views import UserViewSet
+from recipes.models import Follow, Ingredient, Recipe, RecipeIngredient, Tag
 from reportlab.pdfbase import pdfmetrics, ttfonts
 from reportlab.pdfgen import canvas
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import (AllowAny, IsAuthenticated,
+                                        IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
+from users.models import User
 
 from api.filters import IngredientFilter, RecipeFilter
 from api.paginations import LimitPagination
 from api.permissions import IsAuthorOrReadOnly
-from recipes.models import Ingredient, Recipe, RecipeIngredient, Tag
-from api.serializers.recipes import (FavoriteSerializer, IngredientSerializer,
-                                     RecipeSerializer, ShoppingCartSerializer,
-                                     TagSerializer)
+from api.serializers import (CustomUserSerializer, FavoriteSerializer,
+                             FollowSerializer, IngredientSerializer,
+                             RecipeSerializer, ShoppingCartSerializer,
+                             TagSerializer)
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
@@ -47,7 +52,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def action_post_delete(self, pk, serializer_class):
         user = self.request.user
         recipe = get_object_or_404(Recipe, pk=pk)
-        object = user.recipes.filter(recipe=recipe)
+        obj = user.recipes.filter(recipe=recipe)
 
         if self.request.method == 'POST':
             serializer = serializer_class(
@@ -59,8 +64,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         if self.request.method == 'DELETE':
-            if object.exists():
-                object.delete()
+            if obj.exists():
+                obj.delete()
                 return Response(status=status.HTTP_204_NO_CONTENT)
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -84,23 +89,64 @@ class RecipeViewSet(viewsets.ModelViewSet):
         p.setFont('Arial', 14)
 
         ingredients = RecipeIngredient.objects.filter(
-            recipe__shopping_cart__user=request.user).values_list(
-            'ingredient__name', 'amount', 'ingredient__measurement_unit')
+            recipe__shopping_list__user=request.user).values(
+            name=F('ingredient__name'),
+            measurement_unit=F('ingredient__measurement_unit')).annotate(
+            amount=Sum('amount').order_by('-amount')
+        )
 
-        ingr_list = {}
-        for name, amount, unit in ingredients:
-            if name not in ingr_list:
-                ingr_list[name] = {'amount': amount, 'unit': unit}
-            else:
-                ingr_list[name]['amount'] += amount
         height = 700
 
         p.drawString(100, 750, 'Список покупок')
-        for i, (name, data) in enumerate(ingr_list.items(), start=1):
+        for ingredient in ingredients:
             p.drawString(
                 80, height,
-                f"{i}. {name} – {data['amount']} {data['unit']}")
+                f"{ingredient['name']} – {ingredient['amount']} "
+                f"{ingredient['measurement_unit']}"
+            )
             height -= 25
         p.showPage()
         p.save()
         return response
+
+
+class UsersViewSet(UserViewSet):
+    """Работа с пользователями и подписками."""
+    queryset = User.objects.all()
+    serializer_class = CustomUserSerializer
+    permission_classes = (IsAuthenticatedOrReadOnly,)
+    pagination_class = LimitPagination
+    http_method_names = ['get', 'post', 'delete', 'head']
+
+    def get_permissions(self):
+        if self.action == 'me':
+            self.permission_classes = (IsAuthenticated,)
+        return super().get_permissions()
+
+    @action(methods=['POST', 'DELETE'], detail=True,)
+    def subscribe(self, request, id):
+        user = request.user
+        author = get_object_or_404(User, id=id)
+        subscription = Follow.objects.filter(user=user, author=author)
+
+        if request.method == 'POST':
+            if user == author:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            serializer = FollowSerializer(author, context={'request': request})
+            Follow.objects.get_or_create(user=user, author=author)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        if request.method == 'DELETE':
+            if subscription.exists():
+                subscription.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, permission_classes=[IsAuthenticated])
+    def subscriptions(self, request):
+        user = request.user
+        follows = User.objects.filter(following__user=user)
+        page = self.paginate_queryset(follows)
+        serializer = FollowSerializer(page, many=True,
+                                      context={'request': request})
+        return self.get_paginated_response(serializer.data)
