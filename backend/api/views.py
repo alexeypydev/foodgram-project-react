@@ -94,8 +94,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             recipe__shopping_list__user=request.user).values(
             name=F('ingredient__name'),
             measurement_unit=F('ingredient__measurement_unit')).annotate(
-            amount=Sum('amount').order_by('-amount')
-        )
+            amount=Sum('amount')).order_by('-amount')
 
         height = 700
 
