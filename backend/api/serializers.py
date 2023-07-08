@@ -3,12 +3,13 @@ import base64
 from django.core.files.base import ContentFile
 from django.core.validators import MaxValueValidator, MinValueValidator
 from djoser.serializers import UserCreateSerializer, UserSerializer
-from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
-                            Shopping, Tag)
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SerializerMethodField
+
 from users.models import User
+from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                            Shopping, Tag)
 
 
 class Base64ImageField(serializers.ImageField):
@@ -78,8 +79,8 @@ class AddIngredientSerializer(serializers.ModelSerializer):
                 message='Количество не может быть меньше 1!'
             ),
             MaxValueValidator(
-                100,
-                message='Количество не может быть больше 100!'
+                100000,
+                message='Количество не может быть больше 100000!'
             )
         ]
     )
@@ -121,7 +122,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('ingredients')
-        instance.recipe_ingredient.clear()
+        instance.recipe.clear()
         instance.tags.set(tags)
         self.create_ingredients(instance, ingredients)
         return super().update(instance, validated_data)
